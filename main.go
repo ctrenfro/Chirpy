@@ -8,6 +8,20 @@ func main() {
 
 	mux := http.NewServeMux()
 	corsMux := middlewareCors(mux)
+	fs := http.FileServer(http.Dir("."))
+	metrics := &apiConfig{}
+
+	mux.Handle("/app/*", metrics.middlewareMetricsInc(http.StripPrefix("/app", fs)))
+	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+
+	})
+	mux.Handle("GET /api/metrics", metrics.serve())
+	mux.Handle("GET /api/reset", metrics.reset())
+	mux.Handle("GET /admin/metrics", metrics.admin())
+	mux.Handle("POST /api/validate_chirp", validate)
 
 	server := &http.Server{
 		Addr:    "localhost:8080",
