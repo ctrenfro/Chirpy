@@ -1,46 +1,50 @@
 package main
 
 import (
+	"log"
 	"net/http"
+
+	"github.com/ctrenfro/Chirpy/internal/database"
 )
 
-func main() {
-
-	mux := http.NewServeMux()
-	corsMux := middlewareCors(mux)
-	fs := http.FileServer(http.Dir("."))
-	metrics := &apiConfig{}
-
-	mux.Handle("/app/*", metrics.middlewareMetricsInc(http.StripPrefix("/app", fs)))
-	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8") // normal header
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-
-	})
-	mux.Handle("GET /api/metrics", metrics.serve())
-	mux.Handle("GET /api/reset", metrics.reset())
-	mux.Handle("GET /admin/metrics", metrics.admin())
-	mux.Handle("POST /api/validate_chirp", validate)
-
-	server := &http.Server{
-		Addr:    "localhost:8080",
-		Handler: corsMux,
-	}
-
-	server.ListenAndServe()
-
+type apiConfig struct {
+	fileserverHits int
+	DB             *database.DB
 }
 
-func middlewareCors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+func main() {
+	const filepathRoot = "."
+	const port = "8080"
+
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	apiCfg := apiConfig{
+		fileserverHits: 0,
+		DB:             db,
+	}
+
+	mux := http.NewServeMux()
+	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+	mux.Handle("/app/*", fsHandler)
+
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+	mux.HandleFunc("GET /api/reset", apiCfg.handlerReset)
+	mux.HandleFunc("POST /api/chirps", apiCfg.handlerChirpsCreate)
+	mux.HandleFunc("GET /api/chirps", apiCfg.handlerChirpsRetrieve)
+	mux.HandleFunc("GET /api/chirps/{chirpid}", apiCfg.handlerChirpsRetrieveById)
+
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("GET /api/users", apiCfg.handlerUsersRetrieve)
+	mux.HandleFunc("POST /api/users", apiCfg.handlerUsersCreate)
+
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+
+	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
+	log.Fatal(srv.ListenAndServe())
 }
