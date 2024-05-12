@@ -4,16 +4,24 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/ctrenfro/Chirpy/internal/auth"
+	"github.com/ctrenfro/Chirpy/internal/database"
 )
 
 type User struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
+	ID       int    `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"-"`
 }
 
 func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}
+	type response struct {
+		User
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -24,28 +32,27 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	cleaned, err := validateChirp(params.Email)
+	hashedPassword, err := auth.HashPassword(params.Password)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, http.StatusInternalServerError, "Couldn't hash password")
 		return
 	}
 
-	user, err := cfg.DB.CreateUser(cleaned)
+	user, err := cfg.DB.CreateUser(params.Email, hashedPassword)
 	if err != nil {
+		if errors.Is(err, database.ErrAlreadyExists) {
+			respondWithError(w, http.StatusConflict, "User already exists")
+			return
+		}
+
 		respondWithError(w, http.StatusInternalServerError, "Couldn't create user")
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, User{
-		ID:    user.ID,
-		Email: user.Email,
+	respondWithJSON(w, http.StatusCreated, response{
+		User: User{
+			ID:    user.ID,
+			Email: user.Email,
+		},
 	})
-}
-
-func validateUser(email string) (string, error) {
-	const maxEmailLength = 140
-	if len(email) > maxEmailLength {
-		return "", errors.New("Email is too long")
-	}
-	return email, nil
 }
