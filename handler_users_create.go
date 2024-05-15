@@ -15,6 +15,7 @@ type User struct {
 	Password           string `json:"-"`
 	Expires_in_seconds int    `json:"expires_in_seconds"`
 	Token              string `json:"token"`
+	RefreshToken       string `json:"refresh_token"`
 }
 
 func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
