@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -46,20 +47,24 @@ func (db *DB) RevokeRefreshToken(token string) error {
 func (db *DB) UserForRefreshToken(token string) (User, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
+		fmt.Println("1")
 		return User{}, err
 	}
 
 	refreshToken, ok := dbStructure.RefreshTokens[token]
 	if !ok {
+		fmt.Println("2")
 		return User{}, ErrNotExist
 	}
 
 	if refreshToken.ExpiresAt.Before(time.Now()) {
+		fmt.Println("3")
 		return User{}, ErrNotExist
 	}
 
 	user, err := db.GetUser(refreshToken.UserID)
 	if err != nil {
+		fmt.Println("4")
 		return User{}, err
 	}
 

@@ -14,7 +14,7 @@ import (
 )
 
 // ErrNoAuthHeaderIncluded -
-var ErrNoAuthHeaderIncluded = errors.New("not auth header included in request")
+var ErrNoAuthHeaderIncluded = errors.New("no auth header included in request")
 
 // HashPassword -
 func HashPassword(password string) (string, error) {
@@ -31,7 +31,11 @@ func CheckPasswordHash(password, hash string) error {
 }
 
 // MakeJWT -
-func MakeJWT(userID int, tokenSecret string, expiresIn time.Duration) (string, error) {
+func MakeJWT(
+	userID int,
+	tokenSecret string,
+	expiresIn time.Duration,
+) (string, error) {
 	signingKey := []byte(tokenSecret)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
