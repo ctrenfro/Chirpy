@@ -9,6 +9,12 @@ import (
 )
 
 func (cfg *apiConfig) handlerChirpsDelete(w http.ResponseWriter, r *http.Request) {
+	chirpIDString := r.PathValue("chirpID")
+	chirpID, err := strconv.Atoi(chirpIDString)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID")
+		return
+	}
 
 	token, err := auth.GetBearerToken(r.Header)
 	if err != nil {
@@ -26,23 +32,22 @@ func (cfg *apiConfig) handlerChirpsDelete(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	chirpIDString := r.PathValue("chirpID")
-	chirpID, err := strconv.Atoi(chirpIDString)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid chirp ID")
-		return
-	}
-
 	dbChirp, err := cfg.DB.GetChirp(chirpID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Couldn't get chirp")
 		return
 	}
 
-	if dbChirp.ID != userID {
+	if dbChirp.AuthorID != userID {
 		respondWithError(w, http.StatusForbidden, "AuthorID and UserID do not match")
 		return
 	}
 
-	respondWithJSON(w, http.StatusNoContent, Chirp{})
+	err = cfg.DB.DeleteChirp(chirpID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't delete chirp")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

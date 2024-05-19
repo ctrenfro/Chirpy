@@ -73,6 +73,8 @@ func main() {
 
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handler_Webhooks)
+
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,

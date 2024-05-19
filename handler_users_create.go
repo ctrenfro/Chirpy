@@ -16,6 +16,7 @@ type User struct {
 	Expires_in_seconds int    `json:"expires_in_seconds"`
 	Token              string `json:"token"`
 	RefreshToken       string `json:"refresh_token"`
+	IsChirpyRed        bool   `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
@@ -54,8 +55,9 @@ func (cfg *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request)
 
 	respondWithJSON(w, http.StatusCreated, response{
 		User: User{
-			ID:    user.ID,
-			Email: user.Email,
+			ID:          user.ID,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
 		},
 	})
 }
